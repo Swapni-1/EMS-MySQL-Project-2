@@ -27,7 +27,7 @@ create table Employee(
     LastName varchar(100) not null,
     DepartmentID int not null,
     RoleID int not null,
-    HireData DATE not null,
+    HireDate DATE not null,
 
     constraint fk_employee_department
     foreign key (DepartmentID) references Department(DepartmentID)
@@ -47,7 +47,7 @@ create table Project(
 );
 
 #Employee Project Table
-create table EmplolyeeProject(
+create table EmployeeProject(
     EmployeeID int not null,
     ProjectID int not null,
     RoleInProject varchar(100) not null,
@@ -91,3 +91,71 @@ create table Payroll(
     foreign key (EmployeeID) references Employee(EmployeeID)
     on delete cascade on update cascade
 );
+
+#Inserting Sample data for employee_management tables
+
+#inserting data into department table
+INSERT INTO Department (DepartmentName) VALUES
+('HR'),
+('Engineering'),
+('Marketing'),
+('Finance'),
+('Operations');
+
+#inserting data into role table
+INSERT INTO Role (RoleName) VALUES
+('Software Engineer'),
+('Senior Software Engineer'),
+('HR Manager'),
+('Marketing Executive'),
+('Accountant'),
+('Project Manager');
+
+#inserting data into employee table
+INSERT INTO Employee (FirstName, LastName, DepartmentID, RoleID, HireDate) VALUES
+('Amit', 'Sharma', 2, 1, '2022-03-15'),
+('Neha', 'Verma', 2, 2, '2021-06-10'),
+('Rahul', 'Mehta', 1, 3, '2020-01-20'),
+('Priya', 'Singh', 3, 4, '2022-09-05'),
+('Karan', 'Patel', 4, 5, '2019-11-12'),
+('Sneha', 'Iyer', 2, 6, '2023-02-01'),
+('Arjun', 'Rao', 5, 1, '2023-07-18');
+
+#inserting data into project table
+INSERT INTO Project (ProjectName, Status, StartDate) VALUES
+('Employee Management System', 'Ongoing', '2023-01-10'),
+('Marketing Automation Tool', 'Ongoing', '2023-05-01'),
+('Payroll Optimization', 'Completed', '2022-08-15'),
+('Customer Analytics Platform', 'On Hold', '2023-03-20');
+
+#inserting data into employee project
+INSERT INTO EmployeeProject (EmployeeID, ProjectID, RoleInProject) VALUES
+(1, 1, 'Backend Developer'),
+(2, 1, 'Tech Lead'),
+(6, 1, 'Project Manager'),
+(4, 2, 'Marketing Analyst'),
+(3, 3, 'HR Consultant'),
+(5, 3, 'Finance Lead'),
+(1, 4, 'Support Developer'),
+(7, 2, 'Operations Support');
+
+#inserting data into attendance table
+INSERT INTO Attendance (EmployeeID, Date, CheckInTime, CheckOutTime, Status) VALUES
+(1, '2024-02-01', '09:05:00', '18:00:00', 'Present'),
+(2, '2024-02-01', '09:00:00', '18:30:00', 'Present'),
+(3, '2024-02-01', NULL, NULL, 'Absent'),
+(4, '2024-02-01', '09:15:00', '17:45:00', 'Present'),
+(5, '2024-02-01', '09:10:00', '18:10:00', 'Present'),
+(1, '2024-02-02', '09:00:00', '18:00:00', 'Present'),
+(3, '2024-02-02', NULL, NULL, 'Leave');
+
+#inserting data into payroll table
+INSERT INTO Payroll (EmployeeID, BaseSalary, Bonuses, Deductions) VALUES
+(1, 60000.00, 5000.00, 2000.00),
+(2, 90000.00, 10000.00, 5000.00),
+(3, 70000.00, 0.00, 3000.00),
+(4, 50000.00, 3000.00, 1000.00),
+(5, 80000.00, 7000.00, 4000.00),
+(6, 100000.00, 15000.00, 8000.00),
+(7, 55000.00, 2000.00, 1500.00);
+
