@@ -171,22 +171,23 @@ project name."*/
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {EmployeeProject : [EmployeeID],[ProjectID]} -> {Project : [ProjectID],[ProjectName],[Status]}
 
     select
-        e.EmployeeID,
+        e.EmployeeID as EmployeeID,
         concat(e.FirstName,' ',e.LastName) as EmployeeName,
-        p.ProjectName
+        p.ProjectName as ProjectName
     from Employee e
     join EmployeeProject ep on ep.EmployeeID = e.EmployeeID
     join Project p on p.ProjectID = ep.ProjectID
-    where p.status = 'Ongoing'
+    where p.Status = 'Ongoing'
     and e.EmployeeID in (
-        select ep.EmployeeID
+        select
+            ep.EmployeeID
         from EmployeeProject ep
         join Project p on p.ProjectID = ep.ProjectID
         where p.Status = 'Ongoing'
         group by ep.EmployeeID
         having count(ep.EmployeeID) > 3
         )
-    order by employeeName;
+    order by EmployeeName;
 
 
 /*
@@ -196,18 +197,20 @@ last month. Include their names and the total number of absences with absence da
 */
 
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[Date],[Status]}
+   select
+       e.EmployeeID,
+       concat(e.FirstName,' ',e.LastName),
+       count(e.EmployeeID) as TotalAbsences,
+       group_concat(a.Date order by a.Date) as AbsenceDates
+   from Attendance a
+   join Employee e on e.EmployeeID = a.EmployeeID
+   where a.Status = 'Absent'
+   and a.Date >= date_sub(curdate(),interval 1 month)
+   group by e.EmployeeID
+   having count(e.EmployeeID) > 3;
 
-    select
-        e.EmployeeID,
-        concat(e.FirstName,' ',e.LastName),
-        count(*) as TotalAbsences,
-        group_concat(a.Date order by a.Date) as AbsenceDates
-    from Attendance a
-    join Employee e on e.EmployeeID = a.EmployeeID
-    where a.status = 'Absent'
-    and a.Date >= date_sub(curdate(),interval 1 month)
-    group by e.EmployeeID
-    having count(*) > 3;
+
+
 /*
 3. Department Salary Analysis
 "Provide a report that shows the total and average salary (NetPay) for employees in each
@@ -215,15 +218,15 @@ department. Include department names in your results."
 */
 
 #{Payroll : [EmployeeID],[NetPay]} -> {Employee : [EmployeeID],[DepartmentID]} -> {Department : [DepartmentID],[DepartmentName]}
+   select
+       d.DepartmentName as DepartmentName,
+       round(sum(p.NetPay),2) as TotalSalary,
+       round(sum(p.NetPay),2) as AverageSalary
+   from Payroll p
+   join Employee e on e.EmployeeID = p.EmployeeID
+   join Department d on d.DepartmentID = e.DepartmentID
+   group by d.DepartmentID;
 
-    select
-        d.DepartmentName as DepartmentName,
-        round(sum(p.NetPay),2) as TotalSalary,
-        round(avg(p.NetPay),2) as AverageSalary
-    from Payroll p
-    join Employee e on e.EmployeeID = p.EmployeeID
-    join Department d on d.DepartmentID = e.DepartmentID
-    group by d.DepartmentID;
 /*
 4. Employee Without Projects
 "Find employees who are not currently assigned to any project. Display their names,
@@ -232,15 +235,16 @@ department names, and roles."
 
 #{Employee : [EmployeeID],[RoleID],[FirstName],[LastName]} -> {EmployeeProject : [EmployeeID],[ProjectID]} -> {Department : [EmployeeID],[DepartmentID],[DepartmentName]} -> {Role : [RoleID],[RoleName]}
 
-    select
-        concat(e.FirstName,' ',e.LastName) as EmployeeName,
-        d.DepartmentName,
-        r.RoleName
-    from Employee e
-    left join EmployeeProject ep on ep.EmployeeID = e.EmployeeID
-    join Department d on d.DepartmentID = e.DepartmentID
-    join Role r on r.RoleID = e.RoleID
-    where ep.ProjectID is null;
+select
+    concat(e.FirstName,' ',e.LastName) as EmployeeName,
+    d.DepartmentName as DepartmentName,
+    r.RoleName as RoleName
+from Employee e
+join Department d on d.DepartmentID = e.DepartmentID
+join Role r on r.RoleID = e.RoleID
+left join EmployeeProject ep on ep.EmployeeID = e.EmployeeID
+where ep.ProjectID is null;
+
 
 /*
 5. Project Assignment Role
@@ -250,14 +254,14 @@ the project. Ensure the project is still ongoing."
 
 # {Employee : [EmployeeID],[FirstName],[LastName]} -> {EmployeeProject : [EmployeeID],[ProjectID],[RoleInProject]} -> {Project : [ProjectID],[ProjectName],[Status]}
 
-    select
-        concat(e.FirstName,' ',e.LastName),
-        ep.RoleInProject,
-        p.ProjectName
-    from Employee e
-    join EmployeeProject ep on ep.EmployeeID = e.EmployeeID
-    join Project p on p.ProjectID = ep.ProjectID
-    where p.status = 'Ongoing' and p.ProjectName = 'Tech Upgrade';
+select
+    concat(e.FirstName,' ',e.LastName) as EmployeeName,
+    ep.RoleInProject
+from Employee e
+join EmployeeProject ep on ep.EmployeeID = e.EmployeeID
+join Project p on p.ProjectID = ep.ProjectID
+where p.ProjectName = 'Tech Upgrade'
+and p.Status = 'Ongoing';
 
 /*
 6. Payroll Verification
@@ -268,13 +272,15 @@ selected month"
 
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {Payroll : [EmployeeID],[BaseSalary],[NetPay]}
 
-    select
-        concat(e.FirstName,' ',e.LastName) as EmployeeName,
-        Round((p.NetPay / p.BaseSalary) * 100, 2) as NetPayPercentage
-    from Employee e
-    join Payroll p on p.EmployeeID = e.EmployeeID
-    where p.NetPay < (0.6 * BaseSalary)
-    and p.PayMonth = '2024-02-01';
+select
+    concat(e.FirstName,' ',e.LastName) as EmployeeName,
+    round((p.NetPay/p.BaseSalary) * 100,2) as NetPayPercentage
+from Payroll p
+join Employee e on e.EmployeeID = p.EmployeeID
+where p.NetPay < (0.6 * p.BaseSalary)
+and p.PayMonth = '2024-02-01';
+
+
 
 /*
 7. Department Hire Dates
@@ -284,21 +290,19 @@ hired on those dates."
 
 #{Employee : [EmployeeID],[FirstName],[LastName],[HireDate]} -> {Department : [EmployeeID],[DepartmentID],[DepartmentName]}
 
+select
+    d.DepartmentName as DepartmentName,
+    concat(e.FirstName,' ',e.LastName) as EmployeeName,
+    e.HireDate
+from Employee e
+join Department d on d.DepartmentID = e.DepartmentID
+join (
     select
-        d.DepartmentName,
-        concat(e.FirstName,' ',e.LastName) as EmployeeName,
-        e.HireDate
-    from Employee e
-    join Department d on d.DepartmentID = e.EmployeeID
-    join(
-        select
-            DepartmentID,
-            min(HireDate) as EarliestHire
-        from Employee
-        group by DepartmentID
-    ) as t
-    on t.DepartmentID = e.DepartmentID
-    and t.EarliestHire = e.HireDate;
+        DepartmentID,
+        min(HireDate) as EarliestHireDate
+    from Employee
+    group by DepartmentID
+) t on t.DepartmentID = e.DepartmentID and t.EarliestHireDate = e.HireDate;
 
 
 /*
@@ -309,17 +313,14 @@ month. Include their names, the date, and total hours worked."
 
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[Date],[Status],[CheckInTime],[CheckOutTIme]}
 
-    select
-        concat(e.FirstName,' ',e.LastName) as EmployeeName,
-        a.Date as Date,
-        TIMESTAMPDIFF(hour,a.CheckInTime,a.CheckOutTime) as TotalHoursWorked
-    from Employee e
-    join Attendance a on a.EmployeeID = e.EmployeeID
-    where a.Date >= date_sub(curdate(),interval 1 month)
-    and timestampdiff(hour,a.CheckInTime,a.CheckOutTime) > 1
-    and checkInTime is not null
-    and CheckOutTime is not null;
-
+select
+    concat(e.FirstName,' ',e.LastName) as EmployeeName,
+    a.Date as Date,
+    timestampdiff(hour,a.CheckInTime,a.CheckOutTime) as TotalHoursWorked
+from Attendance a
+join Employee e on e.EmployeeID = a.EmployeeID
+where timestampdiff(hour,a.CheckInTime,a.CheckOutTime) > 10
+and a.Date >= date_sub(curdate(),interval 1 month);
 
 
 /*
@@ -331,12 +332,12 @@ month. Include their names, the date, and total hours worked."
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {Role : [RoleID],[RoleName]} -> {Department : [DepartmentID],[DepartmentName]}
 
 select
-    d.DepartmentName as DepartmentName,
-    concat(e.FirstName,' ',e.LastName) as EmployeeName
+    d.DepartmentName,
+    concat(e.FirstName,' ',e.FirstName) as EmployeeName
 from Employee e
-join Role r on r.RoleID = e.RoleID
 join Department d on d.DepartmentID = e.DepartmentID
-where RoleName like '%Manager';
+join Role r on r.RoleID = e.RoleID
+where r.RoleName like '%Manager';
 
 /*
 10. Salary Increment Plan
@@ -347,18 +348,17 @@ salaries."
 
 #{Employee : [EmployeeID],[FirstName],[LastName],[HireDate]} -> [Payroll : [EmployeeID],[BaseSalary]]
 
-    Update Payroll p
-    join Employee e on e.EmployeeID = p.EmployeeID
-    set p.BaseSalary = p.BaseSalary * 1.10
-    where HireDate < '2020-01-01';
+Update Payroll p
+join Employee e on e.EmployeeID = p.EmployeeID
+set p.BaseSalary = p.BaseSalary * 1.10
+where e.HireDate < '2020-01-01';
 
-   select
-       concat(e.FirstName,' ',e.LastName) as EmployeeName,
-       p.BaseSalary
-   from Employee e
-   join Payroll p on p.EmployeeID = e.EmployeeID
-   where HireDate < '2020-01-01';
-
+select
+    concat(e.FirstName,' ',e.LastName) as EmployeeName,
+    p.BaseSalary
+from Employee e
+join Payroll p on p.EmployeeID = e.EmployeeID
+where e.HireDate < '2020-01-01';
 
 #---------------Additional SQL Challenges---------------
 
@@ -369,19 +369,41 @@ grouped by department. Include department names and average employee experience.
 
 #{Employee : [EmployeeID],[FirstName],[LastName],[HireDate]} -> {Department : [DepartmentID],[EmployeeID],[DepartmentName]}
 
+    select
+        d.DepartmentName as DepartmentName,
+        avg(TIMESTAMPDIFF(year,HireDate,curdate())) as AverageEmployeeExperience,
+        sum(TIMESTAMPDIFF(year,HireDate,curdate())) as TotalEmployeeExperience
+    from Employee e
+    join Department d on d.DepartmentID = e.DepartmentID
+    group by d.DepartmentID;
 /*
 2. Project Status Overview: Write a query to count the number of projects in each status
 (e.g., Ongoing, Completed, Pending).
 */
 
 #{Project ,[Status]}
+   select
+       Status as ProjectStatus,
+       count(ProjectID) as NumberOfProject
+   from Project
+   group by ProjectStatus;
 
 /*
 3. Late Check-In Report: Identify employees who checked in late (after 9:00 AM) more
 than 5 times in the past month. Display their names and the dates they were late.
 */
 
-#{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[CheckInTime]}
+#{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[Date],[CheckInTime]}
+
+    select
+        concat(e.FirstName,' ',e.LastName) as EmployeeName,
+        group_concat(a.Date order by a.Date separator ',') as LateDates
+    from Employee e
+    join Attendance a on a.EmployeeID = e.EmployeeID
+    where a.Date >= date_sub(curdate(),interval 1 month)
+    and a.CheckInTime > '09:00:00'
+    group by e.EmployeeID
+    having count(a.AttendanceID) > 5;
 
 /*
 4. Inactive Employees: Find employees who have not checked in or checked out in the
@@ -390,10 +412,24 @@ last 3 months. List their names and departments.
 
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[CheckInTime][CheckOutTime]}
 
+    select
+        concat(e.FirstName,' ',e.LastName) as EmployeeName,
+        d.DepartmentName as DepartmentName
+    from Employee e
+    join Department d on d.DepartmentID = e.DepartmentID
+    left join Attendance a on e.EmployeeID = a.EmployeeID
+    where a.CheckInTime is null and a.CheckOutTime is null
+    and a.Date < date_sub(curdate(),interval 3 month);
 /*
 5. Employee Role Statistics: Write a query to calculate the number of employees in each
 role and display it alongside the role names.
 */
+    select
+        r.RoleName as RoleName,
+        count(e.EmployeeID) as EmployeeCount
+    from Role r
+    join Employee e on e.RoleID = r.RoleID
+    group by r.RoleID;
 
 /*
 6. Overdue Projects: List all projects that are overdue based on their expected
@@ -402,6 +438,13 @@ days.
 */
 #{Project : [ProjectName],[Status],[ExpectedEndDate]}
 
+    select
+        ProjectName,
+        Status,
+        datediff(curdate(),ExpectedEndDate) as OverDueDays
+    from Project
+    where ExpectedEndDate < curdate()
+    and Status != 'Completed';
 /*
 7. Employee Attendance Patterns: Identify employees with consistent attendance (e.g.,
 marked 'Present' for more than 90% of working days in the past month). Include their
@@ -410,6 +453,14 @@ names and attendance percentages.
 
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[Date],[Status]}
 
+    select
+        concat(e.FirstName,' ',e.LastName) as EmployeeName,
+        Round(sum(a.status = 'Present')/count(e.EmployeeID) * 100,2) as AttendancePercentage
+    from Employee e
+    join Attendance a on a.EmployeeID = e.EmployeeID
+    and a.Date >= date_sub(curdate(),interval 1 month)
+    group by e.EmployeeID
+    having AttendancePercentage > 90;
 /*
 8. Highest Paid Employees: Retrieve the top 5 highest-paid employees in the
 organization along with their departments and roles.
@@ -417,9 +468,29 @@ organization along with their departments and roles.
 
 #{Payroll : [EmployeeID],[NetPay]} -> {Employee : [EmployeeID],[FirstName],[LastName]} -> {Department : [DepartmentID],[DepartmentName]} -> {Role : [RoleId],[RoleName]}
 
+    select
+        concat(e.FirstName,' ',e.LastName) as EmployeeName,
+        d.DepartmentName as DepartmentName,
+        r.RoleName as RoleName,
+        p.NetPay as NetPay
+    from Employee e
+    join Department d on d.DepartmentID = e.DepartmentID
+    join Role r on r.RoleID = e.RoleID
+    join Payroll p on p.EmployeeID = e.EmployeeID
+    order by p.NetPay desc
+    limit 5;
 /*
 9. Cross-Department Projects: Identify projects that involve employees from more than
 3 different departments. List the project names and involved department counts.
 */
 
 #{Project : [ProjectID],[ProjectName]} -> {EmployeeProject : [EmployeeID],[ProjectID]} -> {Employee : [EmployeeID]}
+
+select
+    p.ProjectName as ProjectName,
+    count(distinct e.DepartmentID) as DepartmentCount
+from Project p
+join EmployeeProject ep on ep.ProjectID = p.ProjectID
+join Employee e on e.EmployeeID = ep.EmployeeID
+group by p.ProjectID
+having DepartmentCount > 3;
