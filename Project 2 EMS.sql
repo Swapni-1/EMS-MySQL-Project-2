@@ -87,7 +87,7 @@ create table Payroll(
     Deductions Decimal(10,2) default 0.00,
     NetPay Decimal(10,2)
         GENERATED ALWAYS AS (BaseSalary + Bonuses - Deductions) Stored,
-
+    PayMonth date not null,
     constraint fk_Payroll_Employee
     foreign key (EmployeeID) references Employee(EmployeeID)
     on delete cascade on update cascade
@@ -152,14 +152,14 @@ INSERT INTO Attendance (EmployeeID, Date, CheckInTime, CheckOutTime, Status) VAL
 (3, '2024-02-02', NULL, NULL, 'Leave');
 
 #inserting data into payroll table
-INSERT INTO Payroll (EmployeeID, BaseSalary, Bonuses, Deductions) VALUES
-(1, 60000.00, 5000.00, 2000.00),
-(2, 90000.00, 10000.00, 5000.00),
-(3, 70000.00, 0.00, 3000.00),
-(4, 50000.00, 3000.00, 1000.00),
-(5, 80000.00, 7000.00, 4000.00),
-(6, 100000.00, 15000.00, 8000.00),
-(7, 55000.00, 2000.00, 1500.00);
+INSERT INTO Payroll (EmployeeID, BaseSalary, Bonuses, Deductions,PayMonth) VALUES
+(1, 60000.00, 5000.00, 2000.00,'2024-02-01'),
+(2, 90000.00, 10000.00, 5000.00,'2024-02-01'),
+(3, 70000.00, 0.00, 3000.00,'2024-01-01'),
+(4, 50000.00, 3000.00, 1000.00,'2024-02-01'),
+(5, 80000.00, 7000.00, 4000.00,'2024-01-01'),
+(6, 100000.00, 15000.00, 8000.00,'2024-02-01'),
+(7, 55000.00, 2000.00, 1500.00,'2024-02-01');
 
 #----------Running SQL Query for Employee Management System----------
 
@@ -170,6 +170,25 @@ project name."*/
 
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {EmployeeProject : [EmployeeID],[ProjectID]} -> {Project : [ProjectID],[ProjectName],[Status]}
 
+    select
+        e.EmployeeID,
+        concat(e.FirstName,' ',e.LastName) as EmployeeName,
+        p.ProjectName
+    from Employee e
+    join EmployeeProject ep on ep.EmployeeID = e.EmployeeID
+    join Project p on p.ProjectID = ep.ProjectID
+    where p.status = 'Ongoing'
+    and e.EmployeeID in (
+        select ep.EmployeeID
+        from EmployeeProject ep
+        join Project p on p.ProjectID = ep.ProjectID
+        where p.Status = 'Ongoing'
+        group by ep.EmployeeID
+        having count(ep.EmployeeID) > 3
+        )
+    order by employeeName;
+
+
 /*
 2. Monitor Employee Attendance
 "Generate a report of employees who were marked 'Absent' more than three times in the
@@ -178,6 +197,17 @@ last month. Include their names and the total number of absences with absence da
 
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[Date],[Status]}
 
+    select
+        e.EmployeeID,
+        concat(e.FirstName,' ',e.LastName),
+        count(*) as TotalAbsences,
+        group_concat(a.Date order by a.Date) as AbsenceDates
+    from Attendance a
+    join Employee e on e.EmployeeID = a.EmployeeID
+    where a.status = 'Absent'
+    and a.Date >= date_sub(curdate(),interval 1 month)
+    group by e.EmployeeID
+    having count(*) > 3;
 /*
 3. Department Salary Analysis
 "Provide a report that shows the total and average salary (NetPay) for employees in each
@@ -186,6 +216,14 @@ department. Include department names in your results."
 
 #{Payroll : [EmployeeID],[NetPay]} -> {Employee : [EmployeeID],[DepartmentID]} -> {Department : [DepartmentID],[DepartmentName]}
 
+    select
+        d.DepartmentName as DepartmentName,
+        round(sum(p.NetPay),2) as TotalSalary,
+        round(avg(p.NetPay),2) as AverageSalary
+    from Payroll p
+    join Employee e on e.EmployeeID = p.EmployeeID
+    join Department d on d.DepartmentID = e.DepartmentID
+    group by d.DepartmentID;
 /*
 4. Employee Without Projects
 "Find employees who are not currently assigned to any project. Display their names,
@@ -194,6 +232,16 @@ department names, and roles."
 
 #{Employee : [EmployeeID],[RoleID],[FirstName],[LastName]} -> {EmployeeProject : [EmployeeID],[ProjectID]} -> {Department : [EmployeeID],[DepartmentID],[DepartmentName]} -> {Role : [RoleID],[RoleName]}
 
+    select
+        concat(e.FirstName,' ',e.LastName) as EmployeeName,
+        d.DepartmentName,
+        r.RoleName
+    from Employee e
+    left join EmployeeProject ep on ep.EmployeeID = e.EmployeeID
+    join Department d on d.DepartmentID = e.DepartmentID
+    join Role r on r.RoleID = e.RoleID
+    where ep.ProjectID is null;
+
 /*
 5. Project Assignment Role
 "Retrieve a list of employees assigned to a project named 'Tech Upgrade' and their roles in
@@ -201,6 +249,15 @@ the project. Ensure the project is still ongoing."
 */
 
 # {Employee : [EmployeeID],[FirstName],[LastName]} -> {EmployeeProject : [EmployeeID],[ProjectID],[RoleInProject]} -> {Project : [ProjectID],[ProjectName],[Status]}
+
+    select
+        concat(e.FirstName,' ',e.LastName),
+        ep.RoleInProject,
+        p.ProjectName
+    from Employee e
+    join EmployeeProject ep on ep.EmployeeID = e.EmployeeID
+    join Project p on p.ProjectID = ep.ProjectID
+    where p.status = 'Ongoing' and p.ProjectName = 'Tech Upgrade';
 
 /*
 6. Payroll Verification
@@ -211,6 +268,14 @@ selected month"
 
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {Payroll : [EmployeeID],[BaseSalary],[NetPay]}
 
+    select
+        concat(e.FirstName,' ',e.LastName) as EmployeeName,
+        Round((p.NetPay / p.BaseSalary) * 100, 2) as NetPayPercentage
+    from Employee e
+    join Payroll p on p.EmployeeID = e.EmployeeID
+    where p.NetPay < (0.6 * BaseSalary)
+    and p.PayMonth = '2024-02-01';
+
 /*
 7. Department Hire Dates
 "Find the earliest hire date of employees in each department and the names of employees
@@ -218,6 +283,23 @@ hired on those dates."
 */
 
 #{Employee : [EmployeeID],[FirstName],[LastName],[HireDate]} -> {Department : [EmployeeID],[DepartmentID],[DepartmentName]}
+
+    select
+        d.DepartmentName,
+        concat(e.FirstName,' ',e.LastName) as EmployeeName,
+        e.HireDate
+    from Employee e
+    join Department d on d.DepartmentID = e.EmployeeID
+    join(
+        select
+            DepartmentID,
+            min(HireDate) as EarliestHire
+        from Employee
+        group by DepartmentID
+    ) as t
+    on t.DepartmentID = e.DepartmentID
+    and t.EarliestHire = e.HireDate;
+
 
 /*
 8. Long Working Hours
@@ -227,6 +309,19 @@ month. Include their names, the date, and total hours worked."
 
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[Date],[Status],[CheckInTime],[CheckOutTIme]}
 
+    select
+        concat(e.FirstName,' ',e.LastName) as EmployeeName,
+        a.Date as Date,
+        TIMESTAMPDIFF(hour,a.CheckInTime,a.CheckOutTime) as TotalHoursWorked
+    from Employee e
+    join Attendance a on a.EmployeeID = e.EmployeeID
+    where a.Date >= date_sub(curdate(),interval 1 month)
+    and timestampdiff(hour,a.CheckInTime,a.CheckOutTime) > 1
+    and checkInTime is not null
+    and CheckOutTime is not null;
+
+
+
 /*
 9. Department Leaders
 "Display the names of department managers (employees whose RoleID corresponds to
@@ -235,6 +330,13 @@ month. Include their names, the date, and total hours worked."
 
 #{Employee : [EmployeeID],[FirstName],[LastName]} -> {Role : [RoleID],[RoleName]} -> {Department : [DepartmentID],[DepartmentName]}
 
+select
+    d.DepartmentName as DepartmentName,
+    concat(e.FirstName,' ',e.LastName) as EmployeeName
+from Employee e
+join Role r on r.RoleID = e.RoleID
+join Department d on d.DepartmentID = e.DepartmentID
+where RoleName like '%Manager';
 
 /*
 10. Salary Increment Plan
@@ -244,6 +346,18 @@ salaries."
 */
 
 #{Employee : [EmployeeID],[FirstName],[LastName],[HireDate]} -> [Payroll : [EmployeeID],[BaseSalary]]
+
+    Update Payroll p
+    join Employee e on e.EmployeeID = p.EmployeeID
+    set p.BaseSalary = p.BaseSalary * 1.10
+    where HireDate < '2020-01-01';
+
+   select
+       concat(e.FirstName,' ',e.LastName) as EmployeeName,
+       p.BaseSalary
+   from Employee e
+   join Payroll p on p.EmployeeID = e.EmployeeID
+   where HireDate < '2020-01-01';
 
 
 #---------------Additional SQL Challenges---------------
