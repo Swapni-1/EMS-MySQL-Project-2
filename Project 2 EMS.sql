@@ -1,12 +1,12 @@
 #--------EMPLOYEE MANAGEMENT SYSTEM------------
 
-#Creating database for employee management system
+#####Creating database for employee management system####
 create database if not exists Employee_Management;
 
-#Use Employee_Management Database
+####Use Employee_Management Database####
 use Employee_Management;
 
-#Creating tables for employee management system
+######Creating tables for employee management system#####
 
 #Department Table
 create table Department(
@@ -43,7 +43,8 @@ create table Project(
     ProjectID int auto_increment primary key,
     ProjectName varchar(100) not null,
     Status Enum('Ongoing','Completed','On Hold') not null,
-    StartDate Date not null
+    StartDate Date not null,
+    ExpectedEndDate Date
 );
 
 #Employee Project Table
@@ -92,7 +93,7 @@ create table Payroll(
     on delete cascade on update cascade
 );
 
-#Inserting Sample data for employee_management tables
+########Inserting Sample data for employee_management tables###########
 
 #inserting data into department table
 INSERT INTO Department (DepartmentName) VALUES
@@ -122,11 +123,12 @@ INSERT INTO Employee (FirstName, LastName, DepartmentID, RoleID, HireDate) VALUE
 ('Arjun', 'Rao', 5, 1, '2023-07-18');
 
 #inserting data into project table
-INSERT INTO Project (ProjectName, Status, StartDate) VALUES
-('Employee Management System', 'Ongoing', '2023-01-10'),
-('Marketing Automation Tool', 'Ongoing', '2023-05-01'),
-('Payroll Optimization', 'Completed', '2022-08-15'),
-('Customer Analytics Platform', 'On Hold', '2023-03-20');
+INSERT INTO Project (ProjectName, Status, StartDate, ExpectedEndDate) VALUES
+('Employee Management System', 'Ongoing', '2023-01-10', '2024-06-30'),
+('Marketing Automation Tool', 'Ongoing', '2023-05-01', '2024-03-31'),
+('Payroll Optimization', 'Completed', '2022-08-15', '2023-01-31'),
+('Customer Analytics Platform', 'On Hold', '2023-03-20', '2024-09-30');
+
 
 #inserting data into employee project
 INSERT INTO EmployeeProject (EmployeeID, ProjectID, RoleInProject) VALUES
@@ -159,3 +161,151 @@ INSERT INTO Payroll (EmployeeID, BaseSalary, Bonuses, Deductions) VALUES
 (6, 100000.00, 15000.00, 8000.00),
 (7, 55000.00, 2000.00, 1500.00);
 
+#----------Running SQL Query for Employee Management System----------
+
+/* 1. Identify High-Performing Employees
+"Management wants to know which employees have worked on more than three active
+projects (Status = 'Ongoing'). Write a query to list the names of these employees with
+project name."*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName]} -> {EmployeeProject : [EmployeeID],[ProjectID]} -> {Project : [ProjectID],[ProjectName],[Status]}
+
+/*
+2. Monitor Employee Attendance
+"Generate a report of employees who were marked 'Absent' more than three times in the
+last month. Include their names and the total number of absences with absence dates."
+*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[Date],[Status]}
+
+/*
+3. Department Salary Analysis
+"Provide a report that shows the total and average salary (NetPay) for employees in each
+department. Include department names in your results."
+*/
+
+#{Payroll : [EmployeeID],[NetPay]} -> {Employee : [EmployeeID],[DepartmentID]} -> {Department : [DepartmentID],[DepartmentName]}
+
+/*
+4. Employee Without Projects
+"Find employees who are not currently assigned to any project. Display their names,
+department names, and roles."
+*/
+
+#{Employee : [EmployeeID],[RoleID],[FirstName],[LastName]} -> {EmployeeProject : [EmployeeID],[ProjectID]} -> {Department : [EmployeeID],[DepartmentID],[DepartmentName]} -> {Role : [RoleID],[RoleName]}
+
+/*
+5. Project Assignment Role
+"Retrieve a list of employees assigned to a project named 'Tech Upgrade' and their roles in
+the project. Ensure the project is still ongoing."
+*/
+
+# {Employee : [EmployeeID],[FirstName],[LastName]} -> {EmployeeProject : [EmployeeID],[ProjectID],[RoleInProject]} -> {Project : [ProjectID],[ProjectName],[Status]}
+
+/*
+6. Payroll Verification
+"Identify employees whose net pay (NetPay) is less than 60% of their base salary
+(BaseSalary). Display their names and corresponding percentages. Result should for
+selected month"
+*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName]} -> {Payroll : [EmployeeID],[BaseSalary],[NetPay]}
+
+/*
+7. Department Hire Dates
+"Find the earliest hire date of employees in each department and the names of employees
+hired on those dates."
+*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName],[HireDate]} -> {Department : [EmployeeID],[DepartmentID],[DepartmentName]}
+
+/*
+8. Long Working Hours
+"Create a report of employees who worked more than 10 hours on any given day last
+month. Include their names, the date, and total hours worked."
+*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[Date],[Status],[CheckInTime],[CheckOutTIme]}
+
+/*
+9. Department Leaders
+"Display the names of department managers (employees whose RoleID corresponds to
+'Manager') along with their department names."
+*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName]} -> {Role : [RoleID],[RoleName]} -> {Department : [DepartmentID],[DepartmentName]}
+
+
+/*
+10. Salary Increment Plan
+"Management wants to give a 10% salary increment to all employees hired before 2020.
+Write a query to update the BaseSalary in the Payroll table and list the updated
+salaries."
+*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName],[HireDate]} -> [Payroll : [EmployeeID],[BaseSalary]]
+
+
+#---------------Additional SQL Challenges---------------
+
+/*
+1. Employee Experience Report: Find the total experience (in years) of all employees
+grouped by department. Include department names and average employee experience.
+*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName],[HireDate]} -> {Department : [DepartmentID],[EmployeeID],[DepartmentName]}
+
+/*
+2. Project Status Overview: Write a query to count the number of projects in each status
+(e.g., Ongoing, Completed, Pending).
+*/
+
+#{Project ,[Status]}
+
+/*
+3. Late Check-In Report: Identify employees who checked in late (after 9:00 AM) more
+than 5 times in the past month. Display their names and the dates they were late.
+*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[CheckInTime]}
+
+/*
+4. Inactive Employees: Find employees who have not checked in or checked out in the
+last 3 months. List their names and departments.
+*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[CheckInTime][CheckOutTime]}
+
+/*
+5. Employee Role Statistics: Write a query to calculate the number of employees in each
+role and display it alongside the role names.
+*/
+
+/*
+6. Overdue Projects: List all projects that are overdue based on their expected
+completion date. Include project names, current status, and the number of overdue
+days.
+*/
+#{Project : [ProjectName],[Status],[ExpectedEndDate]}
+
+/*
+7. Employee Attendance Patterns: Identify employees with consistent attendance (e.g.,
+marked 'Present' for more than 90% of working days in the past month). Include their
+names and attendance percentages.
+*/
+
+#{Employee : [EmployeeID],[FirstName],[LastName]} -> {Attendance : [EmployeeID],[Date],[Status]}
+
+/*
+8. Highest Paid Employees: Retrieve the top 5 highest-paid employees in the
+organization along with their departments and roles.
+*/
+
+#{Payroll : [EmployeeID],[NetPay]} -> {Employee : [EmployeeID],[FirstName],[LastName]} -> {Department : [DepartmentID],[DepartmentName]} -> {Role : [RoleId],[RoleName]}
+
+/*
+9. Cross-Department Projects: Identify projects that involve employees from more than
+3 different departments. List the project names and involved department counts.
+*/
+
+#{Project : [ProjectID],[ProjectName]} -> {EmployeeProject : [EmployeeID],[ProjectID]} -> {Employee : [EmployeeID]}
